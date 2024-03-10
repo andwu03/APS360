@@ -12,6 +12,8 @@ import numpy as np
 import nibabel as nib
 import os
 from load_images import test_dataloader, train_dataloader
+from visualize_data import test_image_flair, test_mask, slice_number
+
 import time
 
 TRAIN_DATASET_PATH = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/BraTS2020_TrainingData/MICCAI_BraTS2020_TrainingData/'
@@ -198,6 +200,8 @@ for epoch in tqdm(range(epochs)):
         total_batch_time = batch_time-start_time
         print(f"Elapsed Time (batch: {num}): {total_batch_time}")
 
+    ##MODEL HAS NOT BEEN RUN PAST THIS POINT (8pm March 9th)
+
     # Divide total train loss by length of train dataloader (average loss per batch per epoch)
     train_loss /= len(train_dataloader)
     train_loss_1 /= len(train_dataloader)
@@ -268,7 +272,7 @@ for epoch in tqdm(range(epochs)):
         plt.show()
 
 
-
+#load the checkpoint
 def load_checkpoint(checkpoint_file, model, optimizer, lr):
     print("=> Loading checkpoint")
     checkpoint = torch.load(checkpoint_file, map_location=device)
@@ -280,9 +284,9 @@ def load_checkpoint(checkpoint_file, model, optimizer, lr):
         param_group['lr'] = lr
 
 # Example usage:
-model = UNet(num_classes=1).to(device)
-optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
-load_checkpoint('/kaggle/working/checkpoint_epoch_1.pth.tar', model, optimizer, 0.001)
+# model = UNet(num_classes=1).to(device)
+# optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
+# load_checkpoint('/kaggle/working/checkpoint_epoch_1.pth.tar', model, optimizer, 0.001)
 
 
 y1 = y[0, 0].cpu().detach().numpy()
@@ -296,3 +300,51 @@ plt.subplot(131)
 plt.imshow(X[0, 0].cpu().detach().numpy())
 plt.subplot(132)
 plt.imshow(y)
+
+save_model_path = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/model.pth'
+torch.save(model.state_dict(), save_model_path)
+
+
+def predict_image(model, device, image):
+    """
+    Function to predict the segmentation mask of an input image using the trained model.
+
+    Parameters:
+    - model: The trained segmentation model.
+    - device: The device (CPU or GPU) to perform computation on.
+    - image: The input image tensor.
+
+    Returns:
+    - The predicted segmentation mask.
+    """
+    # Ensure the model is in evaluation mode
+    model.eval()
+
+    # Move the image to the specified device
+    image = image.to(device)
+
+    # Add a batch dimension if necessary
+    if image.dim() == 3:
+        image = image.unsqueeze(0)
+
+    with torch.no_grad(): # Do not compute gradient
+        output = model(image)
+        # Apply a sigmoid since the last layer is a logits layer
+        probs = torch.sigmoid(output)
+        # Threshold the probabilities to create a binary mask
+        preds = (probs > 0.5).float()
+    return preds
+
+
+# Example usage:
+# Assuming `test_image` is a tensor of shape [1, 240, 240] representing a single channel MRI slice
+# And the model and device are already defined and the model is loaded with trained weights
+test_image_tensor = torch.from_numpy(test_image_flair[:,:,slice_number]).unsqueeze(0).unsqueeze(0).float()
+prediction = predict_image(model, device, test_image_tensor)
+
+# Visualizing the prediction
+plt.imshow(prediction.squeeze().cpu(), cmap='gray')
+plt.title (f'Predicted Segmentation Mask: Slice Number: {slice_number}')
+plt.show()
+plt.imshow(test_mask[:,:,slice_number])
+plt.title("Actual Mask")

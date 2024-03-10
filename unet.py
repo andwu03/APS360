@@ -36,6 +36,7 @@ class UNet(nn.Module):
         self.max_pool2d = nn.MaxPool2d(kernel_size=2, stride=2)
         # Contracting path.
         # Each convolution is applied twice.
+        # Convolutional laters in the contracting path
         self.down_convolution_1 = double_convolution(1, 64)
         self.down_convolution_2 = double_convolution(64, 128)
         self.down_convolution_3 = double_convolution(128, 256)
@@ -43,6 +44,7 @@ class UNet(nn.Module):
         self.down_convolution_5 = double_convolution(512, 1024)
 
         # Expanding path.
+        #transpose convolutional laters and expanding path
         self.up_transpose_1 = nn.ConvTranspose2d(
             in_channels=1024, out_channels=512,
             kernel_size=2,

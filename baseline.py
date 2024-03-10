@@ -16,8 +16,12 @@ from torchsummary import summary
 import numpy as np
 import nibabel as nib
 import os
-from load_images_small_dataset import test_dataloader, train_dataloader
-from visualize_data_small_dataset import test_image_flair, test_mask, slice_number
+# from load_images_small_dataset import test_dataloader, train_dataloader
+# from visualize_data_small_dataset import test_image_flair, test_mask, slice_number
+
+from load_images import test_dataloader, train_dataloader
+from visualize_data import test_image_flair, test_mask, slice_number
+
 
 import time
 

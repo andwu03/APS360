@@ -17,10 +17,6 @@ import os
 # lists of directories with studies
 train_and_val_directories = [f.path for f in os.scandir(TRAIN_DATASET_PATH) if f.is_dir()]
 
-# file BraTS20_Training_355 has ill formatted name for for seg.nii file
-train_and_val_directories.remove(TRAIN_DATASET_PATH+'BraTS20_Training_355')
-
-
 def pathListIntoIds(dirList):
     x = []
     for i in range(0,len(dirList)):
@@ -63,9 +59,9 @@ val_images, val_masks = load_dataset(val_ids, TRAIN_DATASET_PATH)
 print(train_images.shape, val_masks.shape)
 
 plt.subplot(121)
-plt.imshow(train_images[100, 0], cmap='gray')
+plt.imshow(train_images[5, 0], cmap='gray')
 plt.subplot(122)
-plt.imshow(train_masks[100, 0], cmap='gray')
+plt.imshow(train_masks[5, 0], cmap='gray')
 
 
 #make dataloaders from the images

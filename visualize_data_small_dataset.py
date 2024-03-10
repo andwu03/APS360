@@ -4,14 +4,13 @@
 import nibabel as nib
 from matplotlib import pyplot as plt
 import os
+TRAIN_DATASET_PATH = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/BraTS2020_TrainingData_Small/MICCAI_BraTS2020_TrainingData/Small_Dataset/'
 
-TRAIN_DATASET_PATH = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/BraTS2020_TrainingData_Small/MICCAI_BraTS2020_TrainingData/Small_Dataset'
-
-test_image_flair = nib.load(TRAIN_DATASET_PATH + 'BraTS20_Training_359/BraTS20_Training_001_flair.nii').get_fdata()
-test_image_t1 = nib.load(TRAIN_DATASET_PATH + 'BraTS20_Training_359/BraTS20_Training_001_t1.nii').get_fdata()
-test_image_t1ce = nib.load(TRAIN_DATASET_PATH + 'BraTS20_Training_359/BraTS20_Training_001_t1ce.nii').get_fdata()
-test_image_t2 = nib.load(TRAIN_DATASET_PATH + 'BraTS20_Training_359/BraTS20_Training_001_t2.nii').get_fdata()
-test_mask = nib.load(TRAIN_DATASET_PATH + 'BraTS20_Training_359/BraTS20_Training_001_seg.nii').get_fdata()
+test_image_flair = nib.load(TRAIN_DATASET_PATH + 'BraTS20_Training_359/BraTS20_Training_359_flair.nii').get_fdata()
+test_image_t1 = nib.load(TRAIN_DATASET_PATH + 'BraTS20_Training_359/BraTS20_Training_359_t1.nii').get_fdata()
+test_image_t1ce = nib.load(TRAIN_DATASET_PATH + 'BraTS20_Training_359/BraTS20_Training_359_t1ce.nii').get_fdata()
+test_image_t2 = nib.load(TRAIN_DATASET_PATH + 'BraTS20_Training_359/BraTS20_Training_359_t2.nii').get_fdata()
+test_mask = nib.load(TRAIN_DATASET_PATH + 'BraTS20_Training_359/BraTS20_Training_359_seg.nii').get_fdata()
 
 fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(1,5, figsize = (20, 10))
 slice_w = 27

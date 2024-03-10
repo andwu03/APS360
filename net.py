@@ -2,14 +2,19 @@
 
 #https://www.kaggle.com/code/ankruteearora/tumor-segmentation
 
-#visualize the data
-
-flair_test_image = 
+#code same as kaggle
 
 import torch
 import torch.nn as nn
 from matplotlib import pyplot as plt
+from torchsummary import summary
+import numpy as np
+import nibabel as nib
 import os
+from load_images import test_dataloader, train_dataloader
+import time
+
+TRAIN_DATASET_PATH = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/BraTS2020_TrainingData/MICCAI_BraTS2020_TrainingData/'
 
 def double_convolution(in_channels, out_channels):
 
@@ -21,7 +26,7 @@ def double_convolution(in_channels, out_channels):
             nn.BatchNorm2d(out_channels, affine=False, track_running_stats=False),
             nn.ReLU(inplace=True)
         )
-        return conv_op
+    return conv_op
 
 class UNet(nn.Module):
     def __init__(self, num_classes):
@@ -89,3 +94,205 @@ class UNet(nn.Module):
         return out
 
 model = UNet(num_classes=1)
+
+#connect to GPU
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device
+
+model.to(device);
+
+summary(model, (1, 240, 240)) #give summary of the layers, output shape, number of parameters
+
+#losses
+
+import torch.nn.functional as F
+
+class DiceLoss(nn.Module):
+    def __init__(self, weight=None, size_average=True):
+        super(DiceLoss, self).__init__()
+
+    def forward(self, inputs, targets, smooth=1):
+
+        #comment out if your model contains a sigmoid or equivalent activation layer
+        inputs = F.sigmoid(inputs)
+
+        #flatten label and prediction tensors
+        inputs = inputs.view(-1)
+        targets = targets.view(-1)
+
+        intersection = (inputs * targets).sum()
+        dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)
+
+        return 1 - dice
+    
+
+
+
+#save checkpoint
+def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
+    print("=> Saving checkpoint")
+    torch.save(state, filename)
+
+# Setup loss function and optimizer
+loss_fn = nn.BCEWithLogitsLoss()# DiceLoss()
+optimizer = torch.optim.SGD(params=model.parameters(), lr=0.001, momentum=0.9, weight_decay=1e-2)
+
+# Import tqdm for progress bar
+from tqdm.auto import tqdm
+
+# Define model
+model = UNet(num_classes=1).to(device)
+
+# Setup loss function and optimizer
+loss_fn_1 = DiceLoss()
+loss_fn_2 = nn.BCEWithLogitsLoss()
+optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
+
+# Set the seed and start the timer
+torch.manual_seed(42)
+
+# Set the number of epochs
+epochs = 10
+
+# Create training and testing loop
+#record start time
+start_time = time.time()
+
+for epoch in tqdm(range(epochs)):
+    print(f"Epoch: {epoch+1} of {epochs}")
+    ### Training
+    ### Training
+    train_loss_1, train_loss_2, train_loss = 0, 0, 0
+    #
+    model.train()
+    # Add a loop to loop through training batches
+    print(f"Number of Batches: {len(train_dataloader)}")
+    num=0
+    for batch, (X, y) in enumerate(train_dataloader):
+        #
+        X, y = X.to(device), y.to(device)
+
+        # 1. Forward pass
+        y_pred = model(X)
+
+        # 2 Calculate loss (per batch)
+        loss_1 = loss_fn_1(y_pred, y)
+        loss_2 = loss_fn_2(y_pred, y)
+        loss = loss_1 + loss_2
+        train_loss += loss # accumulatively add up the loss per epoch)
+        train_loss_1 += loss_1
+        train_loss_2 += loss_2
+
+        # 3. Optimizer zero grad
+        optimizer.zero_grad()
+
+        # 4. Loss backward
+        loss.backward()
+
+        # 5. Optimizer step
+        optimizer.step()
+
+        num += 1
+
+        batch_time = time.time()
+        total_batch_time = batch_time-start_time
+        print(f"Elapsed Time (batch: {num}): {total_batch_time}")
+
+    # Divide total train loss by length of train dataloader (average loss per batch per epoch)
+    train_loss /= len(train_dataloader)
+    train_loss_1 /= len(train_dataloader)
+    train_loss_2 /= len(train_dataloader)
+
+    ### Testing
+    # Setup variables for accumulatively adding up loss and accuracy
+    test_loss_1, test_loss_2, test_loss = 0, 0, 0
+    model.eval()
+    with torch.inference_mode():
+        for X, y in test_dataloader:
+            #
+            X, y = X.to(device), y.to(device)
+
+            # 1. Forward pass
+            y_pred = model(X)
+
+            # 2. Calculate loss (accumatively)
+            loss_1 = loss_fn_1(y_pred, y)
+            loss_2 = loss_fn_2(y_pred, y)
+            loss = loss_1 + loss_2
+            test_loss += loss
+            test_loss_1 += loss_1
+            test_loss_2 += loss_2
+
+        # Calculations on test metrics need to happen inside torch.inference_mode()
+        # Divide total test loss by length of test dataloader (per batch)
+        test_loss /= len(test_dataloader)
+        test_loss_1 /= len(test_dataloader)
+        test_loss_2 /= len(test_dataloader)
+    epoch_time = time.time()
+    total_epoch_time = epoch_time-start_time
+    print(f"Elapsed Time: {total_epoch_time}")
+
+   ## Print out what's happening
+    print(f"Train loss: {train_loss:.5f}, Dice: {train_loss_1:.5f}, BCE: {train_loss_2:.5f} | Test loss: {test_loss:.5f}, Dice: {test_loss_1:.5f}, BCE: {test_loss_2:.5f}\n")
+
+    # Save checkpoint after every epoch
+    checkpoint = {
+        "state_dict": model.state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "epoch": epoch
+    }
+
+    path = f"model_epoch_{epoch+1}.pth.tar"
+    save_checkpoint(checkpoint, filename=path)
+
+
+    if epoch % 10 == 0:
+        plt.subplot(231)
+        plt.imshow(X[0, 0].cpu().detach().numpy(),cmap='gray')
+        plt.axis('off')
+        plt.subplot(232)
+        plt.imshow(y[0, 0].cpu().detach().numpy(),cmap='gray')
+        plt.axis('off')
+        plt.subplot(233)
+        plt.imshow(y_pred[0, 0].cpu().detach().numpy(),cmap='gray')
+        plt.axis('off')
+        plt.subplot(234)
+        plt.imshow(X[12, 0].cpu().detach().numpy(),cmap='gray')
+        plt.axis('off')
+        plt.subplot(235)
+        plt.imshow(y[12, 0].cpu().detach().numpy(),cmap='gray')
+        plt.axis('off')
+        plt.subplot(236)
+        plt.imshow(y_pred[12, 0].cpu().detach().numpy(),cmap='gray')
+        plt.axis('off')
+        plt.show()
+
+
+
+def load_checkpoint(checkpoint_file, model, optimizer, lr):
+    print("=> Loading checkpoint")
+    checkpoint = torch.load(checkpoint_file, map_location=device)
+    model.load_state_dict(checkpoint['state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    
+    # Update the learning rate
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+
+# Example usage:
+model = UNet(num_classes=1).to(device)
+optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
+load_checkpoint('/kaggle/working/checkpoint_epoch_1.pth.tar', model, optimizer, 0.001)
+
+
+y1 = y[0, 0].cpu().detach().numpy()
+y2 = y_pred[0, 0].cpu().detach().numpy()
+y = np.zeros((*y1.shape, 3))
+y[..., 0] = y1
+y[..., 1] = y2
+y[..., 2] = y2
+
+plt.subplot(131)
+plt.imshow(X[0, 0].cpu().detach().numpy())
+plt.subplot(132)
+plt.imshow(y)

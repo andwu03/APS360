@@ -110,7 +110,7 @@ optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
 torch.manual_seed(42)
 
 # Set the number of epochs
-epochs = 10
+epochs = 50
 
 # Create training and testing loop
 #record start time
@@ -166,9 +166,9 @@ for epoch in tqdm(range(epochs)):
 
 
     # Divide total train loss by length of train dataloader (average loss per batch per epoch)
-    combined_train_loss /= len(train_dataloader)
-    DICE_train_loss /= len(train_dataloader)
-    BCE_train_loss /= len(train_dataloader)
+    combined_train_loss[epoch] /= len(train_dataloader)
+    DICE_train_loss[epoch] /= len(train_dataloader)
+    BCE_train_loss[epoch] /= len(train_dataloader)
 
     ### Validation
     # Setup variables for accumulatively adding up loss and accuracy
@@ -193,9 +193,9 @@ for epoch in tqdm(range(epochs)):
 
         # Calculations on test metrics need to happen inside torch.inference_mode()
         # Divide total test loss by length of test dataloader (per batch)
-        combined_val_loss /= len(test_dataloader)
-        DICE_val_loss /= len(test_dataloader)
-        BCE_val_loss /= len(test_dataloader)
+        combined_val_loss[epoch] /= len(test_dataloader)
+        DICE_val_loss[epoch] /= len(test_dataloader)
+        BCE_val_loss[epoch] /= len(test_dataloader)
     epoch_time = time.time()
     total_epoch_time = epoch_time-start_time
     print(f"Elapsed Time: {total_epoch_time}")

@@ -16,11 +16,11 @@ from torchsummary import summary
 import numpy as np
 import nibabel as nib
 import os
-# from load_images_small_dataset import test_dataloader, train_dataloader
-# from visualize_data_small_dataset import test_image_flair, test_mask, slice_number
+from load_images_small_dataset import test_dataloader, train_dataloader
+from visualize_data_small_dataset import test_image_flair, test_mask, slice_number
 
-from load_images import test_dataloader, train_dataloader
-from visualize_data import test_image_flair, test_mask, slice_number
+# from load_images import test_dataloader, train_dataloader
+# from visualize_data import test_image_flair, test_mask, slice_number
 
 
 import time
@@ -115,11 +115,19 @@ epochs = 10
 #record start time
 start_time = time.time()
 
+DICE_train_loss = np.zeros(epochs)
+BCE_train_loss = np.zeros(epochs)
+combined_train_loss = np.zeros(epochs)
+
+DICE_val_loss = np.zeros(epochs)
+BCE_val_loss = np.zeros(epochs)
+combined_val_loss = np.zeros(epochs)
+
 for epoch in tqdm(range(epochs)):
     print(f"Epoch: {epoch+1} of {epochs}")
     ### Training
     ### Training
-    train_loss_1, train_loss_2, train_loss = 0, 0, 0
+
     #
     model.train()
     # Add a loop to loop through training batches
@@ -136,9 +144,9 @@ for epoch in tqdm(range(epochs)):
         loss_1 = loss_fn_1(y_pred, y)
         loss_2 = loss_fn_2(y_pred, y)
         loss = loss_1 + loss_2
-        train_loss += loss # accumulatively add up the loss per epoch)
-        train_loss_1 += loss_1
-        train_loss_2 += loss_2
+        combined_train_loss[epoch] += loss # accumulatively add up the loss per epoch)
+        DICE_train_loss[epoch] += loss_1
+        BCE_train_loss[epoch] += loss_2
 
         # 3. Optimizer zero grad
         optimizer.zero_grad()
@@ -155,17 +163,17 @@ for epoch in tqdm(range(epochs)):
         total_batch_time = batch_time-start_time
         print(f"Elapsed Time (batch: {num}): {total_batch_time}")
 
-    ##MODEL HAS NOT BEEN RUN PAST THIS POINT (8pm March 9th)
 
     # Divide total train loss by length of train dataloader (average loss per batch per epoch)
-    train_loss /= len(train_dataloader)
-    train_loss_1 /= len(train_dataloader)
-    train_loss_2 /= len(train_dataloader)
+    combined_train_loss /= len(train_dataloader)
+    DICE_train_loss /= len(train_dataloader)
+    BCE_train_loss /= len(train_dataloader)
 
-    ### Testing
+    ### Validation
     # Setup variables for accumulatively adding up loss and accuracy
-    test_loss_1, test_loss_2, test_loss = 0, 0, 0
+
     model.eval()
+    i = 0
     with torch.inference_mode():
         for X, y in test_dataloader:
             #
@@ -178,21 +186,22 @@ for epoch in tqdm(range(epochs)):
             loss_1 = loss_fn_1(y_pred, y)
             loss_2 = loss_fn_2(y_pred, y)
             loss = loss_1 + loss_2
-            test_loss += loss
-            test_loss_1 += loss_1
-            test_loss_2 += loss_2
+            combined_val_loss[epoch] += loss
+            DICE_val_loss[epoch] += loss_1
+            BCE_val_loss[epoch] += loss_2
 
         # Calculations on test metrics need to happen inside torch.inference_mode()
         # Divide total test loss by length of test dataloader (per batch)
-        test_loss /= len(test_dataloader)
-        test_loss_1 /= len(test_dataloader)
-        test_loss_2 /= len(test_dataloader)
+        combined_val_loss /= len(test_dataloader)
+        DICE_val_loss /= len(test_dataloader)
+        BCE_val_loss /= len(test_dataloader)
     epoch_time = time.time()
     total_epoch_time = epoch_time-start_time
     print(f"Elapsed Time: {total_epoch_time}")
 
    ## Print out what's happening
-    print(f"Train loss: {train_loss:.5f}, Dice: {train_loss_1:.5f}, BCE: {train_loss_2:.5f} | Test loss: {test_loss:.5f}, Dice: {test_loss_1:.5f}, BCE: {test_loss_2:.5f}\n")
+    print(f"Train loss: {combined_train_loss[epoch]:.5f}, Dice: {DICE_train_loss[epoch]:.5f}, BCE: {BCE_train_loss[epoch]:.5f} | Test loss: {combined_val_loss[epoch]:.5f}, Dice: {DICE_val_loss[epoch]:.5f}, BCE: {DICE_val_loss[epoch]:.5f}\n")
+
 
     # Save checkpoint after every epoch
     checkpoint = {
@@ -216,13 +225,13 @@ for epoch in tqdm(range(epochs)):
         plt.imshow(y_pred[0, 0].cpu().detach().numpy(),cmap='gray')
         plt.axis('off')
         plt.subplot(234)
-        plt.imshow(X[12, 0].cpu().detach().numpy(),cmap='gray')
+        plt.imshow(X[10, 0].cpu().detach().numpy(),cmap='gray')
         plt.axis('off')
         plt.subplot(235)
-        plt.imshow(y[12, 0].cpu().detach().numpy(),cmap='gray')
+        plt.imshow(y[10, 0].cpu().detach().numpy(),cmap='gray')
         plt.axis('off')
         plt.subplot(236)
-        plt.imshow(y_pred[12, 0].cpu().detach().numpy(),cmap='gray')
+        plt.imshow(y_pred[10, 0].cpu().detach().numpy(),cmap='gray')
         plt.axis('off')
         plt.show()
 

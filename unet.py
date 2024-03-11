@@ -16,7 +16,8 @@ from visualize_data import test_image_flair, test_mask, slice_number
 
 import time
 
-TRAIN_DATASET_PATH = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/BraTS2020_TrainingData/MICCAI_BraTS2020_TrainingData/'
+# TRAIN_DATASET_PATH = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/BraTS2020_TrainingData/MICCAI_BraTS2020_TrainingData/'
+TRAIN_DATASET_PATH = "/home/andrew/APS360_Project/Data/MICCAI_BraTS2020_TrainingData/"
 
 def double_convolution(in_channels, out_channels):
 
@@ -252,26 +253,26 @@ for epoch in tqdm(range(epochs)):
     save_checkpoint(checkpoint, filename=path)
 
 
-    if epoch % 10 == 0:
-        plt.subplot(231)
-        plt.imshow(X[0, 0].cpu().detach().numpy(),cmap='gray')
-        plt.axis('off')
-        plt.subplot(232)
-        plt.imshow(y[0, 0].cpu().detach().numpy(),cmap='gray')
-        plt.axis('off')
-        plt.subplot(233)
-        plt.imshow(y_pred[0, 0].cpu().detach().numpy(),cmap='gray')
-        plt.axis('off')
-        plt.subplot(234)
-        plt.imshow(X[12, 0].cpu().detach().numpy(),cmap='gray')
-        plt.axis('off')
-        plt.subplot(235)
-        plt.imshow(y[12, 0].cpu().detach().numpy(),cmap='gray')
-        plt.axis('off')
-        plt.subplot(236)
-        plt.imshow(y_pred[12, 0].cpu().detach().numpy(),cmap='gray')
-        plt.axis('off')
-        plt.show()
+    # if epoch % 10 == 0:
+    #     plt.subplot(231)
+    #     plt.imshow(X[0, 0].cpu().detach().numpy(),cmap='gray')
+    #     plt.axis('off')
+    #     plt.subplot(232)
+    #     plt.imshow(y[0, 0].cpu().detach().numpy(),cmap='gray')
+    #     plt.axis('off')
+    #     plt.subplot(233)
+    #     plt.imshow(y_pred[0, 0].cpu().detach().numpy(),cmap='gray')
+    #     plt.axis('off')
+    #     plt.subplot(234)
+    #     plt.imshow(X[12, 0].cpu().detach().numpy(),cmap='gray')
+    #     plt.axis('off')
+    #     plt.subplot(235)
+    #     plt.imshow(y[12, 0].cpu().detach().numpy(),cmap='gray')
+    #     plt.axis('off')
+    #     plt.subplot(236)
+    #     plt.imshow(y_pred[12, 0].cpu().detach().numpy(),cmap='gray')
+    #     plt.axis('off')
+    #     plt.show()
 
 
 #load the checkpoint
@@ -303,7 +304,8 @@ plt.imshow(X[0, 0].cpu().detach().numpy())
 plt.subplot(132)
 plt.imshow(y)
 
-save_model_path = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/model.pth'
+#save_model_path = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/model.pth'
+save_model_path = "/home/andrew/APS360_Project/Trained_Models/model_0.pth"
 torch.save(model.state_dict(), save_model_path)
 
 

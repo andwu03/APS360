@@ -6,7 +6,7 @@ import numpy as np
 import nibabel as nib
 import os
 
-TRAIN_DATASET_PATH = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/BraTS2020_TrainingData/MICCAI_BraTS2020_TrainingData/'
+TRAIN_DATASET_PATH = "/home/andrew/APS360_Project/Data/MICCAI_BraTS2020_TrainingData/"
 
 
 #split into train, test and validation
@@ -71,7 +71,7 @@ plt.imshow(train_masks[100, 0], cmap='gray')
 #make dataloaders from the images
 from torch.utils.data import TensorDataset, DataLoader
 
-batch_size = 32
+batch_size = 16
 
 train_dataset = TensorDataset(torch.from_numpy(train_images).type(torch.float32), torch.from_numpy(train_masks).type(torch.float32))
 train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)

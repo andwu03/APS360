@@ -33,8 +33,9 @@ class UNet_baseline(nn.Module):
         # Contracting path.
         # Each convolution is applied twice.
 
-        #encoder (conracting path)
+        #encoder (contracting path)
         self.conv1 = nn.Conv2d(1, 64, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(64)  # Batch normalization added
         self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
 
         #decoder (expanding path)
@@ -43,14 +44,14 @@ class UNet_baseline(nn.Module):
 
     def forward(self, x):
         # Contracting path
-        x1 = torch.relu(self.conv1(x))
+        x1 = torch.relu(self.bn1(self.conv1(x)))  # Apply batch normalization before ReLU
         x2 = self.maxpool(x1)
 
         # Expanding path
         x3 = self.upconv1(x2)
         x4 = self.conv2(x3)
 
-        return x4
+        return (x4)  # Sigmoid activation to ensure outputs are in [0, 1] range
 
 model = UNet_baseline(num_classes=1)
 
@@ -115,11 +116,19 @@ epochs = 10
 #record start time
 start_time = time.time()
 
+DICE_train_loss = np.zeros(epochs)
+BCE_train_loss = np.zeros(epochs)
+combined_train_loss = np.zeros(epochs)
+
+DICE_val_loss = np.zeros(epochs)
+BCE_val_loss = np.zeros(epochs)
+combined_val_loss = np.zeros(epochs)
+
 for epoch in tqdm(range(epochs)):
     print(f"Epoch: {epoch+1} of {epochs}")
     ### Training
     ### Training
-    train_loss_1, train_loss_2, train_loss = 0, 0, 0
+
     #
     model.train()
     # Add a loop to loop through training batches
@@ -136,9 +145,9 @@ for epoch in tqdm(range(epochs)):
         loss_1 = loss_fn_1(y_pred, y)
         loss_2 = loss_fn_2(y_pred, y)
         loss = loss_1 + loss_2
-        train_loss += loss # accumulatively add up the loss per epoch)
-        train_loss_1 += loss_1
-        train_loss_2 += loss_2
+        combined_train_loss[epoch] += loss # accumulatively add up the loss per epoch)
+        DICE_train_loss[epoch] += loss_1
+        BCE_train_loss[epoch] += loss_2
 
         # 3. Optimizer zero grad
         optimizer.zero_grad()
@@ -155,17 +164,17 @@ for epoch in tqdm(range(epochs)):
         total_batch_time = batch_time-start_time
         print(f"Elapsed Time (batch: {num}): {total_batch_time}")
 
-    ##MODEL HAS NOT BEEN RUN PAST THIS POINT (8pm March 9th)
 
     # Divide total train loss by length of train dataloader (average loss per batch per epoch)
-    train_loss /= len(train_dataloader)
-    train_loss_1 /= len(train_dataloader)
-    train_loss_2 /= len(train_dataloader)
+    combined_train_loss /= len(train_dataloader)
+    DICE_train_loss /= len(train_dataloader)
+    BCE_train_loss /= len(train_dataloader)
 
-    ### Testing
+    ### Validation
     # Setup variables for accumulatively adding up loss and accuracy
-    test_loss_1, test_loss_2, test_loss = 0, 0, 0
+
     model.eval()
+    i = 0
     with torch.inference_mode():
         for X, y in test_dataloader:
             #
@@ -178,21 +187,22 @@ for epoch in tqdm(range(epochs)):
             loss_1 = loss_fn_1(y_pred, y)
             loss_2 = loss_fn_2(y_pred, y)
             loss = loss_1 + loss_2
-            test_loss += loss
-            test_loss_1 += loss_1
-            test_loss_2 += loss_2
+            combined_val_loss[epoch] += loss
+            DICE_val_loss[epoch] += loss_1
+            BCE_val_loss[epoch] += loss_2
 
         # Calculations on test metrics need to happen inside torch.inference_mode()
         # Divide total test loss by length of test dataloader (per batch)
-        test_loss /= len(test_dataloader)
-        test_loss_1 /= len(test_dataloader)
-        test_loss_2 /= len(test_dataloader)
+        combined_val_loss /= len(test_dataloader)
+        DICE_val_loss /= len(test_dataloader)
+        BCE_val_loss /= len(test_dataloader)
     epoch_time = time.time()
     total_epoch_time = epoch_time-start_time
     print(f"Elapsed Time: {total_epoch_time}")
 
    ## Print out what's happening
-    print(f"Train loss: {train_loss:.5f}, Dice: {train_loss_1:.5f}, BCE: {train_loss_2:.5f} | Test loss: {test_loss:.5f}, Dice: {test_loss_1:.5f}, BCE: {test_loss_2:.5f}\n")
+    print(f"Train loss: {combined_train_loss[epoch]:.5f}, Dice: {DICE_train_loss[epoch]:.5f}, BCE: {BCE_train_loss[epoch]:.5f} | Test loss: {combined_val_loss[epoch]:.5f}, Dice: {DICE_val_loss[epoch]:.5f}, BCE: {DICE_val_loss[epoch]:.5f}\n")
+
 
     # Save checkpoint after every epoch
     checkpoint = {
@@ -226,6 +236,32 @@ for epoch in tqdm(range(epochs)):
         plt.axis('off')
         plt.show()
 
+
+#plot the training curve
+plt.title("Training Curve")
+plt.plot(range(1 ,epochs + 1), DICE_train_loss, label="Train")
+plt.plot(range(1 ,epochs + 1), DICE_val_loss, label="Validation")
+plt.legend(loc='best')
+plt.xlabel("Epochs")
+plt.ylabel("DICE")
+plt.show()
+
+plt.title("Training Curve")
+plt.plot(range(1 ,epochs + 1), BCE_train_loss, label="Train")
+plt.plot(range(1 ,epochs + 1), BCE_val_loss, label="Validation")
+plt.legend(loc='best')
+plt.xlabel("Epochs")
+plt.ylabel("BCE")
+plt.show()
+
+plt.title("Training Curve")
+plt.plot(range(1 ,epochs + 1), combined_train_loss, label="Train")
+plt.plot(range(1 ,epochs + 1), combined_val_loss, label="Validation")
+plt.legend(loc='best')
+plt.xlabel("Epochs")
+plt.ylabel("Combined DICE and BCE")
+plt.show()
+    
 
 #load the checkpoint
 def load_checkpoint(checkpoint_file, model, optimizer, lr):
@@ -303,3 +339,4 @@ plt.title (f'Predicted Segmentation Mask: Slice Number: {slice_number}')
 plt.show()
 plt.imshow(test_mask[:,:,slice_number])
 plt.title("Actual Mask")
+plt.show()

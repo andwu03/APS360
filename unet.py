@@ -129,9 +129,6 @@ class DiceLoss(nn.Module):
         dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)
 
         return 1 - dice
-    
-
-
 
 #save checkpoint
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
@@ -163,12 +160,18 @@ epochs = 10
 #record start time
 start_time = time.time()
 
+#define training outputs
+DICE_train_loss = np.zeros(epochs)
+BCE_train_loss = np.zeros(epochs)
+combined_train_loss = np.zeros(epochs)
+
+DICE_val_loss = np.zeros(epochs)
+BCE_val_loss = np.zeros(epochs)
+combined_val_loss = np.zeros(epochs)
+
 for epoch in tqdm(range(epochs)):
     print(f"Epoch: {epoch+1} of {epochs}")
     ### Training
-    ### Training
-    train_loss_1, train_loss_2, train_loss = 0, 0, 0
-    #
     model.train()
     # Add a loop to loop through training batches
     print(f"Number of Batches: {len(train_dataloader)}")
@@ -184,9 +187,9 @@ for epoch in tqdm(range(epochs)):
         loss_1 = loss_fn_1(y_pred, y)
         loss_2 = loss_fn_2(y_pred, y)
         loss = loss_1 + loss_2
-        train_loss += loss # accumulatively add up the loss per epoch)
-        train_loss_1 += loss_1
-        train_loss_2 += loss_2
+        combined_train_loss[epoch] += loss # accumulatively add up the loss per epoch)
+        DICE_train_loss[epoch] += loss_1
+        BCE_train_loss[epoch] += loss_2
 
         # 3. Optimizer zero grad
         optimizer.zero_grad()
@@ -206,13 +209,12 @@ for epoch in tqdm(range(epochs)):
     ##MODEL HAS NOT BEEN RUN PAST THIS POINT (8pm March 9th)
 
     # Divide total train loss by length of train dataloader (average loss per batch per epoch)
-    train_loss /= len(train_dataloader)
-    train_loss_1 /= len(train_dataloader)
-    train_loss_2 /= len(train_dataloader)
+    combined_train_loss /= len(train_dataloader)
+    DICE_train_loss /= len(train_dataloader)
+    BCE_train_loss /= len(train_dataloader)
 
     ### Testing
     # Setup variables for accumulatively adding up loss and accuracy
-    test_loss_1, test_loss_2, test_loss = 0, 0, 0
     model.eval()
     with torch.inference_mode():
         for X, y in test_dataloader:
@@ -226,21 +228,21 @@ for epoch in tqdm(range(epochs)):
             loss_1 = loss_fn_1(y_pred, y)
             loss_2 = loss_fn_2(y_pred, y)
             loss = loss_1 + loss_2
-            test_loss += loss
-            test_loss_1 += loss_1
-            test_loss_2 += loss_2
+            combined_val_loss[epoch] += loss
+            DICE_val_loss[epoch] += loss_1
+            BCE_val_loss[epoch] += loss_2
 
         # Calculations on test metrics need to happen inside torch.inference_mode()
         # Divide total test loss by length of test dataloader (per batch)
-        test_loss /= len(test_dataloader)
-        test_loss_1 /= len(test_dataloader)
-        test_loss_2 /= len(test_dataloader)
+        combined_val_loss /= len(test_dataloader)
+        DICE_val_loss /= len(test_dataloader)
+        BCE_val_loss /= len(test_dataloader)
     epoch_time = time.time()
     total_epoch_time = epoch_time-start_time
     print(f"Elapsed Time: {total_epoch_time}")
 
    ## Print out what's happening
-    print(f"Train loss: {train_loss:.5f}, Dice: {train_loss_1:.5f}, BCE: {train_loss_2:.5f} | Test loss: {test_loss:.5f}, Dice: {test_loss_1:.5f}, BCE: {test_loss_2:.5f}\n")
+    print(f"Train loss: {combined_train_loss[epoch]:.5f}, Dice: {DICE_train_loss[epoch]:.5f}, BCE: {BCE_train_loss[epoch]:.5f} | Test loss: {combined_val_loss[epoch]:.5f}, Dice: {DICE_val_loss[epoch]:.5f}, BCE: {DICE_val_loss[epoch]:.5f}\n")
 
     # Save checkpoint after every epoch
     checkpoint = {
@@ -273,6 +275,32 @@ for epoch in tqdm(range(epochs)):
     #     plt.imshow(y_pred[12, 0].cpu().detach().numpy(),cmap='gray')
     #     plt.axis('off')
     #     plt.show()
+
+#plot the training curve
+plt.title("Training Curve")
+plt.plot(range(1 ,epochs + 1), DICE_train_loss, label="Train")
+plt.plot(range(1 ,epochs + 1), DICE_val_loss, label="Validation")
+plt.legend(loc='best')
+plt.xlabel("Epochs")
+plt.ylabel("DICE")
+plt.show()
+
+plt.title("Training Curve")
+plt.plot(range(1 ,epochs + 1), BCE_train_loss, label="Train")
+plt.plot(range(1 ,epochs + 1), BCE_val_loss, label="Validation")
+plt.legend(loc='best')
+plt.xlabel("Epochs")
+plt.ylabel("BCE")
+plt.show()
+
+plt.title("Training Curve")
+plt.plot(range(1 ,epochs + 1), combined_train_loss, label="Train")
+plt.plot(range(1 ,epochs + 1), combined_val_loss, label="Validation")
+plt.legend(loc='best')
+plt.xlabel("Epochs")
+plt.ylabel("Combined DICE and BCE")
+plt.show()
+    
 
 
 #load the checkpoint
@@ -352,3 +380,4 @@ plt.title (f'Predicted Segmentation Mask: Slice Number: {slice_number}')
 plt.show()
 plt.imshow(test_mask[:,:,slice_number])
 plt.title("Actual Mask")
+plt.show()

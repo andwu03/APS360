@@ -16,11 +16,11 @@ from torchsummary import summary
 import numpy as np
 import nibabel as nib
 import os
-from load_images_small_dataset import test_dataloader, train_dataloader
-from visualize_data_small_dataset import test_image_flair, test_mask, slice_number
+# from load_images_small_dataset import test_dataloader, train_dataloader
+# from visualize_data_small_dataset import test_image_flair, test_mask, slice_number
 
-# from load_images import test_dataloader, train_dataloader
-# from visualize_data import test_image_flair, test_mask, slice_number
+from load_images import test_dataloader, train_dataloader
+from visualize_data import test_image_flair, test_mask, slice_number
 
 
 import time
@@ -33,8 +33,9 @@ class UNet_baseline(nn.Module):
         # Contracting path.
         # Each convolution is applied twice.
 
-        #encoder (conracting path)
+        #encoder (contracting path)
         self.conv1 = nn.Conv2d(1, 64, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(64)  # Batch normalization added
         self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
 
         #decoder (expanding path)
@@ -43,14 +44,14 @@ class UNet_baseline(nn.Module):
 
     def forward(self, x):
         # Contracting path
-        x1 = torch.relu(self.conv1(x))
+        x1 = torch.relu(self.bn1(self.conv1(x)))  # Apply batch normalization before ReLU
         x2 = self.maxpool(x1)
 
         # Expanding path
         x3 = self.upconv1(x2)
         x4 = self.conv2(x3)
 
-        return x4
+        return (x4)  # Sigmoid activation to ensure outputs are in [0, 1] range
 
 model = UNet_baseline(num_classes=1)
 
@@ -225,16 +226,42 @@ for epoch in tqdm(range(epochs)):
         plt.imshow(y_pred[0, 0].cpu().detach().numpy(),cmap='gray')
         plt.axis('off')
         plt.subplot(234)
-        plt.imshow(X[10, 0].cpu().detach().numpy(),cmap='gray')
+        plt.imshow(X[12, 0].cpu().detach().numpy(),cmap='gray')
         plt.axis('off')
         plt.subplot(235)
-        plt.imshow(y[10, 0].cpu().detach().numpy(),cmap='gray')
+        plt.imshow(y[12, 0].cpu().detach().numpy(),cmap='gray')
         plt.axis('off')
         plt.subplot(236)
-        plt.imshow(y_pred[10, 0].cpu().detach().numpy(),cmap='gray')
+        plt.imshow(y_pred[12, 0].cpu().detach().numpy(),cmap='gray')
         plt.axis('off')
         plt.show()
 
+
+#plot the training curve
+plt.title("Training Curve")
+plt.plot(range(1 ,epochs + 1), DICE_train_loss, label="Train")
+plt.plot(range(1 ,epochs + 1), DICE_val_loss, label="Validation")
+plt.legend(loc='best')
+plt.xlabel("Epochs")
+plt.ylabel("DICE")
+plt.show()
+
+plt.title("Training Curve")
+plt.plot(range(1 ,epochs + 1), BCE_train_loss, label="Train")
+plt.plot(range(1 ,epochs + 1), BCE_val_loss, label="Validation")
+plt.legend(loc='best')
+plt.xlabel("Epochs")
+plt.ylabel("BCE")
+plt.show()
+
+plt.title("Training Curve")
+plt.plot(range(1 ,epochs + 1), combined_train_loss, label="Train")
+plt.plot(range(1 ,epochs + 1), combined_val_loss, label="Validation")
+plt.legend(loc='best')
+plt.xlabel("Epochs")
+plt.ylabel("Combined DICE and BCE")
+plt.show()
+    
 
 #load the checkpoint
 def load_checkpoint(checkpoint_file, model, optimizer, lr):
@@ -312,3 +339,4 @@ plt.title (f'Predicted Segmentation Mask: Slice Number: {slice_number}')
 plt.show()
 plt.imshow(test_mask[:,:,slice_number])
 plt.title("Actual Mask")
+plt.show()

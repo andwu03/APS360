@@ -154,7 +154,7 @@ optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
 torch.manual_seed(42)
 
 # Set the number of epochs
-epochs = 10
+epochs = 300
 
 # Create training and testing loop
 #record start time
@@ -277,7 +277,7 @@ for epoch in tqdm(range(epochs)):
     #     plt.show()
 
 #plot the training curve
-plt.title("Training Curve")
+plt.title("DICE Training Curve")
 plt.plot(range(1 ,epochs + 1), DICE_train_loss, label="Train")
 plt.plot(range(1 ,epochs + 1), DICE_val_loss, label="Validation")
 plt.legend(loc='best')
@@ -285,7 +285,7 @@ plt.xlabel("Epochs")
 plt.ylabel("DICE")
 plt.show()
 
-plt.title("Training Curve")
+plt.title("BCE Training Curve")
 plt.plot(range(1 ,epochs + 1), BCE_train_loss, label="Train")
 plt.plot(range(1 ,epochs + 1), BCE_val_loss, label="Validation")
 plt.legend(loc='best')
@@ -293,7 +293,7 @@ plt.xlabel("Epochs")
 plt.ylabel("BCE")
 plt.show()
 
-plt.title("Training Curve")
+plt.title("DICE & BCE Training Curve")
 plt.plot(range(1 ,epochs + 1), combined_train_loss, label="Train")
 plt.plot(range(1 ,epochs + 1), combined_val_loss, label="Validation")
 plt.legend(loc='best')

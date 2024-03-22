@@ -1,8 +1,10 @@
+# This is a neural network for brain tumor segmentation,
+# implemented with the U-Net architecture. 
+# We will be tuning and verifying this against the baseline model. 
 
+# Code adapted from: 
+# https://www.kaggle.com/code/ankruteearora/tumor-segmentation
 
-#https://www.kaggle.com/code/ankruteearora/tumor-segmentation
-
-#code same as kaggle
 
 import torch
 import torch.nn as nn
@@ -16,10 +18,20 @@ from visualize_data import test_image_flair, test_mask, slice_number
 
 import time
 
-TRAIN_DATASET_PATH = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/BraTS2020_TrainingData/MICCAI_BraTS2020_TrainingData/'
+# TRAIN_DATASET_PATH = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/BraTS2020_TrainingData/MICCAI_BraTS2020_TrainingData/'
+TRAIN_DATASET_PATH = "/home/andrew/APS360_Project/Data/MICCAI_BraTS2020_TrainingData/"
 
 def double_convolution(in_channels, out_channels):
+    """
+    Creates a double convolutional layer with batch normalization and ReLU activation.
 
+    Args:
+        in_channels (int): Number of input channels.
+        out_channels (int): Number of output channels.
+
+    Returns:
+        nn.Sequential: Double convolutional layer with batch normalization and ReLU activation.
+    """
     conv_op = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(out_channels, affine=False, track_running_stats=False),
@@ -31,6 +43,12 @@ def double_convolution(in_channels, out_channels):
     return conv_op
 
 class UNet(nn.Module):
+    """
+    UNet is a convolutional neural network architecture used for image segmentation tasks.
+    It consists of a contracting path and an expanding path, which allows for capturing both
+    local and global information in the input image.
+    """
+
     def __init__(self, num_classes):
         super(UNet, self).__init__()
         self.max_pool2d = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -99,16 +117,18 @@ class UNet(nn.Module):
 
 model = UNet(num_classes=1)
 
-#connect to GPU
+# Connect to GPU.
+# Only Andrew can use this for now. 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 device
 
 model.to(device);
 
-summary(model, (1, 240, 240)) #give summary of the layers, output shape, number of parameters
+summary(model, (1, 240, 240)) 
+# Summarize the model
 
-#losses
 
+# Losses of the model, plus plotting and saving checkpoints.
 import torch.nn.functional as F
 
 class DiceLoss(nn.Module):
@@ -116,11 +136,10 @@ class DiceLoss(nn.Module):
         super(DiceLoss, self).__init__()
 
     def forward(self, inputs, targets, smooth=1):
-
-        #comment out if your model contains a sigmoid or equivalent activation layer
+        # Comment out if model contains a sigmoid or equivalent activation layer.
         inputs = F.sigmoid(inputs)
 
-        #flatten label and prediction tensors
+        # Flatten label and prediction tensors
         inputs = inputs.view(-1)
         targets = targets.view(-1)
 
@@ -129,7 +148,7 @@ class DiceLoss(nn.Module):
 
         return 1 - dice
 
-#save checkpoint
+# Save the model locally.
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
     torch.save(state, filename)
@@ -153,13 +172,13 @@ optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
 torch.manual_seed(42)
 
 # Set the number of epochs
-epochs = 10
+epochs = 300
 
-# Create training and testing loop
-#record start time
+# Training & Testing
+
+# Start the timer. 
 start_time = time.time()
 
-#define training outputs
 DICE_train_loss = np.zeros(epochs)
 BCE_train_loss = np.zeros(epochs)
 combined_train_loss = np.zeros(epochs)
@@ -170,33 +189,31 @@ combined_val_loss = np.zeros(epochs)
 
 for epoch in tqdm(range(epochs)):
     print(f"Epoch: {epoch+1} of {epochs}")
-    ### Training
+    # Training
     model.train()
-    # Add a loop to loop through training batches
     print(f"Number of Batches: {len(train_dataloader)}")
     num=0
     for batch, (X, y) in enumerate(train_dataloader):
-        #
         X, y = X.to(device), y.to(device)
 
-        # 1. Forward pass
+        # Forward pass
         y_pred = model(X)
 
-        # 2 Calculate loss (per batch)
+        # Loss (per batch)
         loss_1 = loss_fn_1(y_pred, y)
         loss_2 = loss_fn_2(y_pred, y)
         loss = loss_1 + loss_2
-        combined_train_loss[epoch] += loss # accumulatively add up the loss per epoch)
+        combined_train_loss[epoch] += loss
         DICE_train_loss[epoch] += loss_1
         BCE_train_loss[epoch] += loss_2
 
-        # 3. Optimizer zero grad
+        # Optimizer zero grad
         optimizer.zero_grad()
 
-        # 4. Loss backward
+        # Loss backward
         loss.backward()
 
-        # 5. Optimizer step
+        # Optimizer step
         optimizer.step()
 
         num += 1
@@ -207,17 +224,16 @@ for epoch in tqdm(range(epochs)):
 
     ##MODEL HAS NOT BEEN RUN PAST THIS POINT (8pm March 9th)
 
-    # Divide total train loss by length of train dataloader (average loss per batch per epoch)
+    # DAverage loss per batch per epoch)
     combined_train_loss /= len(train_dataloader)
     DICE_train_loss /= len(train_dataloader)
     BCE_train_loss /= len(train_dataloader)
 
-    ### Testing
-    # Setup variables for accumulatively adding up loss and accuracy
+    # Testing
+    # Cumulative loss and accuracy
     model.eval()
     with torch.inference_mode():
         for X, y in test_dataloader:
-            #
             X, y = X.to(device), y.to(device)
 
             # 1. Forward pass
@@ -240,7 +256,7 @@ for epoch in tqdm(range(epochs)):
     total_epoch_time = epoch_time-start_time
     print(f"Elapsed Time: {total_epoch_time}")
 
-   ## Print out what's happening
+    # Model Specs
     print(f"Train loss: {combined_train_loss[epoch]:.5f}, Dice: {DICE_train_loss[epoch]:.5f}, BCE: {BCE_train_loss[epoch]:.5f} | Test loss: {combined_val_loss[epoch]:.5f}, Dice: {DICE_val_loss[epoch]:.5f}, BCE: {DICE_val_loss[epoch]:.5f}\n")
 
     # Save checkpoint after every epoch
@@ -254,29 +270,29 @@ for epoch in tqdm(range(epochs)):
     save_checkpoint(checkpoint, filename=path)
 
 
-    if epoch % 10 == 0:
-        plt.subplot(231)
-        plt.imshow(X[0, 0].cpu().detach().numpy(),cmap='gray')
-        plt.axis('off')
-        plt.subplot(232)
-        plt.imshow(y[0, 0].cpu().detach().numpy(),cmap='gray')
-        plt.axis('off')
-        plt.subplot(233)
-        plt.imshow(y_pred[0, 0].cpu().detach().numpy(),cmap='gray')
-        plt.axis('off')
-        plt.subplot(234)
-        plt.imshow(X[12, 0].cpu().detach().numpy(),cmap='gray')
-        plt.axis('off')
-        plt.subplot(235)
-        plt.imshow(y[12, 0].cpu().detach().numpy(),cmap='gray')
-        plt.axis('off')
-        plt.subplot(236)
-        plt.imshow(y_pred[12, 0].cpu().detach().numpy(),cmap='gray')
-        plt.axis('off')
-        plt.show()
+    # if epoch % 10 == 0:
+    #     plt.subplot(231)
+    #     plt.imshow(X[0, 0].cpu().detach().numpy(),cmap='gray')
+    #     plt.axis('off')
+    #     plt.subplot(232)
+    #     plt.imshow(y[0, 0].cpu().detach().numpy(),cmap='gray')
+    #     plt.axis('off')
+    #     plt.subplot(233)
+    #     plt.imshow(y_pred[0, 0].cpu().detach().numpy(),cmap='gray')
+    #     plt.axis('off')
+    #     plt.subplot(234)
+    #     plt.imshow(X[12, 0].cpu().detach().numpy(),cmap='gray')
+    #     plt.axis('off')
+    #     plt.subplot(235)
+    #     plt.imshow(y[12, 0].cpu().detach().numpy(),cmap='gray')
+    #     plt.axis('off')
+    #     plt.subplot(236)
+    #     plt.imshow(y_pred[12, 0].cpu().detach().numpy(),cmap='gray')
+    #     plt.axis('off')
+    #     plt.show()
 
 #plot the training curve
-plt.title("Training Curve")
+plt.title("DICE Training Curve")
 plt.plot(range(1 ,epochs + 1), DICE_train_loss, label="Train")
 plt.plot(range(1 ,epochs + 1), DICE_val_loss, label="Validation")
 plt.legend(loc='best')
@@ -284,7 +300,7 @@ plt.xlabel("Epochs")
 plt.ylabel("DICE")
 plt.show()
 
-plt.title("Training Curve")
+plt.title("BCE Training Curve")
 plt.plot(range(1 ,epochs + 1), BCE_train_loss, label="Train")
 plt.plot(range(1 ,epochs + 1), BCE_val_loss, label="Validation")
 plt.legend(loc='best')
@@ -292,7 +308,7 @@ plt.xlabel("Epochs")
 plt.ylabel("BCE")
 plt.show()
 
-plt.title("Training Curve")
+plt.title("DICE & BCE Training Curve")
 plt.plot(range(1 ,epochs + 1), combined_train_loss, label="Train")
 plt.plot(range(1 ,epochs + 1), combined_val_loss, label="Validation")
 plt.legend(loc='best')
@@ -331,7 +347,8 @@ plt.imshow(X[0, 0].cpu().detach().numpy())
 plt.subplot(132)
 plt.imshow(y)
 
-save_model_path = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/model.pth'
+#save_model_path = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/model.pth'
+save_model_path = "/home/andrew/APS360_Project/Trained_Models/model_0.pth"
 torch.save(model.state_dict(), save_model_path)
 
 

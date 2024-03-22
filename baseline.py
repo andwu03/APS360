@@ -1,13 +1,13 @@
-#same as UNet_baseline but with less layers?
+# This is a simplified version of the U-Net architecture with fewer layers.
+# It is designed for testing on a smaller dataset.
+ 
+# We are using it as a baseline to compare with the more complex U-Net architecture
+# we are implementing. 
 
-#test on a smaller dataset and with less layers
+# The code is adapted from: 
+# Link: https://www.kaggle.com/code/ankruteearora/tumor-segmentation
+# We have simplified it for ease of training and usage as a baseline. 
 
-
-
-
-#https://www.kaggle.com/code/ankruteearora/tumor-segmentation
-
-#code same as kaggle
 
 import torch
 import torch.nn as nn
@@ -25,29 +25,30 @@ from visualize_data import test_image_flair, test_mask, slice_number
 
 import time
 
+# Training Path. Change this to the local path. 
 TRAIN_DATASET_PATH = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/BraTS2020_TrainingData_Small/MICCAI_BraTS2020_TrainingData/Small_Dataset/'
 
 class UNet_baseline(nn.Module):
     def __init__(self, num_classes):
         super(UNet_baseline, self).__init__()
-        # Contracting path.
-        # Each convolution is applied twice.
+        # An autoencoder, of sorts. 
+        # We add convolutional layers, in accordance with the U-Net architecture.
 
-        #encoder (contracting path)
+        # Encode
         self.conv1 = nn.Conv2d(1, 64, kernel_size=3, padding=1)
         self.bn1 = nn.BatchNorm2d(64)  # Batch normalization added
         self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        #decoder (expanding path)
+        # Decode
         self.upconv1 = nn.ConvTranspose2d(64, 64, kernel_size=2, stride=2)
         self.conv2 = nn.Conv2d(64, out_channels=num_classes, kernel_size=3, padding=1)
 
     def forward(self, x):
-        # Contracting path
+        # Encoding
         x1 = torch.relu(self.bn1(self.conv1(x)))  # Apply batch normalization before ReLU
         x2 = self.maxpool(x1)
 
-        # Expanding path
+        # Decoding
         x3 = self.upconv1(x2)
         x4 = self.conv2(x3)
 
@@ -55,15 +56,19 @@ class UNet_baseline(nn.Module):
 
 model = UNet_baseline(num_classes=1)
 
-#connect to GPU
+# Connect to GPU.
+# Only Andrew can actually make use of CUDA; though training through Colab is possible.
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 device
 
 model.to(device);
 
-summary(model, (1, 240, 240)) #give summary of the layers, output shape, number of parameters
+summary(model, (1, 240, 240)) 
+# Summarize the model
 
-#losses
+
+
+# Losses of the model, plus plotting and saving checkpoints.
 
 import torch.nn.functional as F
 
@@ -72,11 +77,10 @@ class DiceLoss(nn.Module):
         super(DiceLoss, self).__init__()
 
     def forward(self, inputs, targets, smooth=1):
-
-        #comment out if your model contains a sigmoid or equivalent activation layer
+        # Comment out if model contains a sigmoid or equivalent activation layer.
         inputs = F.sigmoid(inputs)
 
-        #flatten label and prediction tensors
+        # Flatten label and prediction tensors
         inputs = inputs.view(-1)
         targets = targets.view(-1)
 
@@ -86,22 +90,21 @@ class DiceLoss(nn.Module):
         return 1 - dice
     
 
-#save checkpoint
+# Save the model locally. 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
     torch.save(state, filename)
 
 # Setup loss function and optimizer
-loss_fn = nn.BCEWithLogitsLoss()# DiceLoss()
+loss_fn = nn.BCEWithLogitsLoss() # DiceLoss()
 optimizer = torch.optim.SGD(params=model.parameters(), lr=0.001, momentum=0.9, weight_decay=1e-2)
 
 # Import tqdm for progress bar
 from tqdm.auto import tqdm
 
-# Define model
+# Define model and loss
 model = UNet_baseline(num_classes=1).to(device)
 
-# Setup loss function and optimizer
 loss_fn_1 = DiceLoss()
 loss_fn_2 = nn.BCEWithLogitsLoss()
 optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
@@ -112,8 +115,10 @@ torch.manual_seed(42)
 # Set the number of epochs
 epochs = 50
 
-# Create training and testing loop
-#record start time
+
+# Training & Testing
+
+# Start the timer. 
 start_time = time.time()
 
 DICE_train_loss = np.zeros(epochs)
@@ -126,12 +131,9 @@ combined_val_loss = np.zeros(epochs)
 
 for epoch in tqdm(range(epochs)):
     print(f"Epoch: {epoch+1} of {epochs}")
-    ### Training
-    ### Training
-
-    #
+    # Training. 
     model.train()
-    # Add a loop to loop through training batches
+    
     print(f"Number of Batches: {len(train_dataloader)}")
     num=0
     for batch, (X, y) in enumerate(train_dataloader):
@@ -141,13 +143,14 @@ for epoch in tqdm(range(epochs)):
         # 1. Forward pass
         y_pred = model(X)
 
-        # 2 Calculate loss (per batch)
+        # 2. Calculate loss (per batch)
         loss_1 = loss_fn_1(y_pred, y)
         loss_2 = loss_fn_2(y_pred, y)
         loss = loss_1 + loss_2
-        combined_train_loss[epoch] += loss # accumulatively add up the loss per epoch)
+        combined_train_loss[epoch] += loss 
         DICE_train_loss[epoch] += loss_1
         BCE_train_loss[epoch] += loss_2
+        # Losses are the sum of all batch losses.
 
         # 3. Optimizer zero grad
         optimizer.zero_grad()
@@ -165,13 +168,13 @@ for epoch in tqdm(range(epochs)):
         print(f"Elapsed Time (batch: {num}): {total_batch_time}")
 
 
-    # Divide total train loss by length of train dataloader (average loss per batch per epoch)
-    combined_train_loss[epoch] /= len(train_dataloader)
-    DICE_train_loss[epoch] /= len(train_dataloader)
-    BCE_train_loss[epoch] /= len(train_dataloader)
+    # Average total train loss
+    combined_train_loss /= len(train_dataloader)
+    DICE_train_loss /= len(train_dataloader)
+    BCE_train_loss /= len(train_dataloader)
 
     ### Validation
-    # Setup variables for accumulatively adding up loss and accuracy
+    # Setup variables for cumulatively adding up loss and accuracy
 
     model.eval()
     i = 0
@@ -183,7 +186,7 @@ for epoch in tqdm(range(epochs)):
             # 1. Forward pass
             y_pred = model(X)
 
-            # 2. Calculate loss (accumatively)
+            # 2. Loss (Same as above)
             loss_1 = loss_fn_1(y_pred, y)
             loss_2 = loss_fn_2(y_pred, y)
             loss = loss_1 + loss_2
@@ -200,7 +203,7 @@ for epoch in tqdm(range(epochs)):
     total_epoch_time = epoch_time-start_time
     print(f"Elapsed Time: {total_epoch_time}")
 
-   ## Print out what's happening
+    # Specs for the epoch
     print(f"Train loss: {combined_train_loss[epoch]:.5f}, Dice: {DICE_train_loss[epoch]:.5f}, BCE: {BCE_train_loss[epoch]:.5f} | Test loss: {combined_val_loss[epoch]:.5f}, Dice: {DICE_val_loss[epoch]:.5f}, BCE: {DICE_val_loss[epoch]:.5f}\n")
 
 
@@ -237,7 +240,7 @@ for epoch in tqdm(range(epochs)):
         plt.show()
 
 
-#plot the training curve
+# Plotting training and validation curves
 plt.title("Training Curve")
 plt.plot(range(1 ,epochs + 1), DICE_train_loss, label="Train")
 plt.plot(range(1 ,epochs + 1), DICE_val_loss, label="Validation")
@@ -263,7 +266,7 @@ plt.ylabel("Combined DICE and BCE")
 plt.show()
     
 
-#load the checkpoint
+# Load the model from a checkpoint
 def load_checkpoint(checkpoint_file, model, optimizer, lr):
     print("=> Loading checkpoint")
     checkpoint = torch.load(checkpoint_file, map_location=device)

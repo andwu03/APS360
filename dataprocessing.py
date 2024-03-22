@@ -30,16 +30,26 @@ from torchvision import transforms, datasets
 
 
 # Flip operation (to double the size of the dataset)
+# VERY IMPORTANT
+# TODO TODO TODO
+# Flip is very fundamentally broken. I need to fix this. 
+# It just refuses to flip the label. 
+# I must rewrite this logic so that we can handle both 
+# flipped and non-flipped images within the same dataset.
 class Flip:
     def __call__(self, sample):
         # double check the axis. We can only flip in the coronal plane. 
         # (Flipping left and right brains, while maintaining the same orientation)
-        # print("Sample shape:", sample.shape)
-        if sample.shape[2] > 0:
-            return torch.flip(sample, [2])
+        print("Sample shape:", sample.shape)
+        if len(sample.shape) == 3:
+            # flip label
+            print("Flipping label via FLIP, Axis: 0")
+            return torch.flip(sample, [0])
         else:
-            # print("Warning: sample has zero shape along axis 1, cannot flip.")
-            return sample
+            # flip image
+            print("Flipping image via FLIP, Axis: 1")
+            return torch.flip(sample, [1])
+            
     
 
 # Stack operation (Combines _flair, _t1, _t1ce, _t2 images to a single tensor)
@@ -53,7 +63,7 @@ class Stack:
 class Normalize:
     def __call__(self, sample):
         # Don't normalize if it's a label we're passing in here.
-        if sample.shape[0] == 3:
+        if len(sample.shape) == 3:
             return sample
 
         sample = (sample - torch.mean(sample)) / torch.std(sample)
@@ -79,7 +89,7 @@ class BraTSDataset(Dataset):
         self.stack = stack
         self.images = []
         self.labels = []
-        self.flip_images = np.zeros(len(self.images))
+        self.flip_images = []
 
         # Get the subdirectories in the data_dir
         subdirs = [f for f in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, f))]
@@ -95,6 +105,9 @@ class BraTSDataset(Dataset):
             # print(labels)
             self.images.extend(images)
             self.labels.extend(labels)
+            print("Added to set: ", images, labels)
+
+            # break # ONLY ONE FOR NOW TODO
 
         # also make an array for flipped images
 
@@ -107,8 +120,10 @@ class BraTSDataset(Dataset):
         self.labels = [self.labels[i] for i in range(0, len(self.labels))]
 
         if flip:
+            self.flip_images = np.concatenate((self.flip_images, np.zeros(len(self.images))))
             self.flip_images = np.concatenate((self.flip_images, np.ones(len(self.images))))
             self.images = self.images + self.images
+            print("Images: ", self.images)
             self.labels = self.labels + self.labels
             # When retrieving the images, we will need to check if the image is flipped or not.
             # potentially extremely inefficient! but i don't care
@@ -149,13 +164,46 @@ class BraTSDataset(Dataset):
         # Flip the images back if there's a flag for it in self.flip_images
         # god. what beautiful code. i've outdone myself
         # if anyone reads this i'm really sorry
-        if self.flip_images[idx] == 1:
-            images = torch.flip(images, [1])
-            label = torch.flip(label, [1])
+        # print("Flip_images: ", self.flip_images)
+        if self.flip:
+            if self.flip_images[idx] == 1:
+                print("Flipping image via getitem: ", self.flip_images[idx])
+                images = torch.flip(images, [1])
+                label = torch.flip(label, [0])
+            else: 
+                print("Not flipping image: ", self.flip_images[idx])
 
         return images, label
+    
 
-if __name__ == "__main__":
+def generate_dataloaders(data_dir='', batch_size=1, flip = False, norm = False, stack = True):
+    if data_dir == '':
+        data_dir = r"C:\Users\sparq\Videos\EngsciMisc\APS360\Project\BraTS\BraTS2020_TrainingData\MICCAI_BraTS2020_TrainingData"
+    dataproctransform = transforms.Compose([
+        Flip(),
+        Normalize(),
+        ToTensor()
+    ])
+
+    # Create the dataset
+    dataset = BraTSDataset(data_dir=data_dir, transform=dataproctransform, flip=flip, norm=norm, stack=stack)
+
+    # Set up the dataloaders
+    # Train, Val, Test in a 80/20 split
+    train_size = int(0.8 * len(dataset))
+    val_size = len(dataset) - train_size
+    train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size])
+
+    train_dataloader = DataLoader(train_dataset, batch_size, shuffle=True)
+    val_dataloader = DataLoader(val_dataset, batch_size, shuffle=True)
+
+    print("Train size: ", len(train_dataloader))
+    print("Val size: ", len(val_dataloader))
+
+
+    return train_dataloader, val_dataloader
+
+def TESTFUNCTIONDONOTRUN():
     # Primarily testing to make sure everything works. 
     import matplotlib.pyplot as plt
 
@@ -179,11 +227,11 @@ if __name__ == "__main__":
     dataset = BraTSDataset(data_dir=data_dir, transform=transform, flip = False, norm = False, stack = True)
 
     # Create a data loader
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
+    train_loader, val_loader = generate_dataloaders(data_dir, batch_size=1, flip = True, norm = False, stack = True)    
 
 
     # Visualize the dataset
-    for images, label in dataloader:
+    for i, (images, label) in enumerate(train_loader):
         # Access the first brain scan in the batch
         brain_scan = images[0]
         
@@ -191,16 +239,24 @@ if __name__ == "__main__":
         slice_index = brain_scan.shape[3] // 2
         slice_image = brain_scan[0, :, :, slice_index]
 
+        # print("Image shape: ", brain_scan.shape)
+        # print("Image index: ", slice_index)
+
+        # print("Train loader length: ", len(train_loader))
 
         
+        plt.subplot(1, 2, 1)
         plt.imshow(slice_image, cmap='gray')
+        plt.title('Image')
+        plt.subplot(1, 2, 2)
+        plt.imshow(label[0, :, :, slice_index], cmap='gray')
+        plt.title('Label')
         plt.show()
+        
 
-        # find the flipped version
-        flipped = torch.flip(brain_scan, [2])
-        slice_image = flipped[0, :, :, slice_index]
-        plt.imshow(slice_image, cmap='gray')
-        plt.show()
-        break  # Only visualize one brain scan
+        
+
+if __name__ == "__main__":
+    TESTFUNCTIONDONOTRUN()
 
 

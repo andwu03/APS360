@@ -30,24 +30,18 @@ from torchvision import transforms, datasets
 
 
 # Flip operation (to double the size of the dataset)
-# VERY IMPORTANT
-# TODO TODO TODO
-# Flip is very fundamentally broken. I need to fix this. 
-# It just refuses to flip the label. 
-# I must rewrite this logic so that we can handle both 
-# flipped and non-flipped images within the same dataset.
 class Flip:
     def __call__(self, sample):
         # double check the axis. We can only flip in the coronal plane. 
         # (Flipping left and right brains, while maintaining the same orientation)
-        print("Sample shape:", sample.shape)
+        # print("Sample shape:", sample.shape)
         if len(sample.shape) == 3:
             # flip label
-            print("Flipping label via FLIP, Axis: 0")
+            # print("Flipping label via FLIP, Axis: 0")
             return torch.flip(sample, [0])
         else:
             # flip image
-            print("Flipping image via FLIP, Axis: 1")
+            # print("Flipping image via FLIP, Axis: 1")
             return torch.flip(sample, [1])
             
     
@@ -105,11 +99,10 @@ class BraTSDataset(Dataset):
             # print(labels)
             self.images.extend(images)
             self.labels.extend(labels)
-            print("Added to set: ", images, labels)
+            # print("Added to set: ", images, labels)
 
             # break # ONLY ONE FOR NOW TODO
 
-        # also make an array for flipped images
 
         # Sort the images and labels
         self.images.sort()
@@ -167,16 +160,22 @@ class BraTSDataset(Dataset):
         # print("Flip_images: ", self.flip_images)
         if self.flip:
             if self.flip_images[idx] == 1:
-                print("Flipping image via getitem: ", self.flip_images[idx])
+                # print("Flipping image via getitem: ", self.flip_images[idx])
                 images = torch.flip(images, [1])
                 label = torch.flip(label, [0])
             else: 
-                print("Not flipping image: ", self.flip_images[idx])
+                pass
+                # print("Not flipping image: ", self.flip_images[idx])
+
+        # Turn the data into torch32 floats
+        images = images.float()
+        label = label.float()
 
         return images, label
     
 
 def generate_dataloaders(data_dir='', batch_size=1, flip = False, norm = False, stack = True):
+    print("Generating Dataloaders. ")
     if data_dir == '':
         data_dir = r"C:\Users\sparq\Videos\EngsciMisc\APS360\Project\BraTS\BraTS2020_TrainingData\MICCAI_BraTS2020_TrainingData"
     dataproctransform = transforms.Compose([

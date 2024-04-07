@@ -28,7 +28,7 @@ train_and_test_ids = pathListIntoIds(train_and_val_directories);
 train_test_ids, val_ids = train_test_split(train_and_test_ids,test_size=0.15)
 train_ids, test_ids = train_test_split(train_test_ids,test_size=0.15)
 
-print(f"Train: {len(train_ids)} | Validation: {len(val_ids)} | Test: {len(test_ids)}")
+print(f"Num Train: {len(train_ids)}, Num Validation: {len(val_ids)}, Num Test: {len(test_ids)}")
 
 
 #Load dataset
@@ -58,10 +58,11 @@ val_images, val_masks = load_dataset(val_ids, TRAIN_DATASET_PATH)
 
 print(train_images.shape, val_masks.shape)
 
-plt.subplot(121)
-plt.imshow(train_images[5, 0], cmap='gray')
-plt.subplot(122)
-plt.imshow(train_masks[5, 0], cmap='gray')
+if __name__ == "__main__":
+    plt.subplot(121)
+    plt.imshow(train_images[5, 0], cmap='gray')
+    plt.subplot(122)
+    plt.imshow(train_masks[5, 0], cmap='gray')
 
 
 #make dataloaders from the images
@@ -76,8 +77,9 @@ test_dataset = TensorDataset(torch.from_numpy(val_images).type(torch.float32), t
 test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 #plot the dataloader
-X, Y = next(iter(train_dataloader))
-plt.subplot(121)
-plt.imshow(X[0, 0], cmap='gray')
-plt.subplot(122)
-plt.imshow(Y[0, 0], cmap='gray')
+if __name__ == "__main__":
+    X, Y = next(iter(train_dataloader))
+    plt.subplot(121)
+    plt.imshow(X[0, 0], cmap='gray')
+    plt.subplot(122)
+    plt.imshow(Y[0, 0], cmap='gray')

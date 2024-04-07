@@ -113,7 +113,7 @@ optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
 torch.manual_seed(42)
 
 # Set the number of epochs
-epochs = 50
+epochs = 10
 
 
 # Training & Testing

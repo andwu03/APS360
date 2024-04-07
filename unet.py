@@ -13,8 +13,8 @@ from torchsummary import summary
 import numpy as np
 import nibabel as nib
 import os
-from load_images import test_dataloader, train_dataloader
-from visualize_data import test_image_flair, test_mask, slice_number
+from load_images_small_dataset import test_dataloader, train_dataloader
+from visualize_data_small_dataset import test_image_flair, test_mask, slice_number
 
 import time
 
@@ -161,7 +161,7 @@ optimizer = torch.optim.SGD(params=model.parameters(), lr=0.001, momentum=0.9, w
 from tqdm.auto import tqdm
 
 # Define model
-model = UNet(num_classes=1).to(device)
+model = UNet(num_classes=3).to(device)
 
 # Setup loss function and optimizer
 loss_fn_1 = DiceLoss()
@@ -172,7 +172,7 @@ optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
 torch.manual_seed(42)
 
 # Set the number of epochs
-epochs = 300
+epochs = 3
 
 # Training & Testing
 
@@ -270,26 +270,26 @@ for epoch in tqdm(range(epochs)):
     save_checkpoint(checkpoint, filename=path)
 
 
-    # if epoch % 10 == 0:
-    #     plt.subplot(231)
-    #     plt.imshow(X[0, 0].cpu().detach().numpy(),cmap='gray')
-    #     plt.axis('off')
-    #     plt.subplot(232)
-    #     plt.imshow(y[0, 0].cpu().detach().numpy(),cmap='gray')
-    #     plt.axis('off')
-    #     plt.subplot(233)
-    #     plt.imshow(y_pred[0, 0].cpu().detach().numpy(),cmap='gray')
-    #     plt.axis('off')
-    #     plt.subplot(234)
-    #     plt.imshow(X[12, 0].cpu().detach().numpy(),cmap='gray')
-    #     plt.axis('off')
-    #     plt.subplot(235)
-    #     plt.imshow(y[12, 0].cpu().detach().numpy(),cmap='gray')
-    #     plt.axis('off')
-    #     plt.subplot(236)
-    #     plt.imshow(y_pred[12, 0].cpu().detach().numpy(),cmap='gray')
-    #     plt.axis('off')
-    #     plt.show()
+    if epoch % 10 == 0:
+        plt.subplot(231)
+        plt.imshow(X[0, 0].cpu().detach().numpy(),cmap='gray')
+        plt.axis('off')
+        plt.subplot(232)
+        plt.imshow(y[0, 0].cpu().detach().numpy(),cmap='gray')
+        plt.axis('off')
+        plt.subplot(233)
+        plt.imshow(y_pred[0, 0].cpu().detach().numpy(),cmap='gray')
+        plt.axis('off')
+        plt.subplot(234)
+        plt.imshow(X[9, 0].cpu().detach().numpy(),cmap='gray')
+        plt.axis('off')
+        plt.subplot(235)
+        plt.imshow(y[9, 0].cpu().detach().numpy(),cmap='gray')
+        plt.axis('off')
+        plt.subplot(236)
+        plt.imshow(y_pred[9, 0].cpu().detach().numpy(),cmap='gray')
+        plt.axis('off')
+        plt.show()
 
 #plot the training curve
 plt.title("DICE Training Curve")

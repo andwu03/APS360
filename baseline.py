@@ -26,7 +26,8 @@ from visualize_data import test_image_flair, test_mask, slice_number
 import time
 
 # Training Path. Change this to the local path. 
-TRAIN_DATASET_PATH = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/BraTS2020_TrainingData_Small/MICCAI_BraTS2020_TrainingData/Small_Dataset/'
+# TRAIN_DATASET_PATH = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/BraTS2020_TrainingData_Small/MICCAI_BraTS2020_TrainingData/Small_Dataset/'
+TRAIN_DATASET_PATH = "/home/andrew/APS360_Project/Data/MICCAI_BraTS2020_TrainingData/"
 
 class UNet_baseline(nn.Module):
     def __init__(self, num_classes):
@@ -169,9 +170,9 @@ for epoch in tqdm(range(epochs)):
 
 
     # Average total train loss
-    combined_train_loss /= len(train_dataloader)
-    DICE_train_loss /= len(train_dataloader)
-    BCE_train_loss /= len(train_dataloader)
+    combined_train_loss[epoch] /= len(train_dataloader)
+    DICE_train_loss[epoch] /= len(train_dataloader)
+    BCE_train_loss[epoch] /= len(train_dataloader)
 
     ### Validation
     # Setup variables for cumulatively adding up loss and accuracy
@@ -196,9 +197,9 @@ for epoch in tqdm(range(epochs)):
 
         # Calculations on test metrics need to happen inside torch.inference_mode()
         # Divide total test loss by length of test dataloader (per batch)
-        combined_val_loss /= len(test_dataloader)
-        DICE_val_loss /= len(test_dataloader)
-        BCE_val_loss /= len(test_dataloader)
+        combined_val_loss[epoch] /= len(test_dataloader)
+        DICE_val_loss[epoch] /= len(test_dataloader)
+        BCE_val_loss[epoch] /= len(test_dataloader)
     epoch_time = time.time()
     total_epoch_time = epoch_time-start_time
     print(f"Elapsed Time: {total_epoch_time}")
@@ -295,7 +296,7 @@ plt.imshow(X[0, 0].cpu().detach().numpy())
 plt.subplot(132)
 plt.imshow(y)
 
-save_model_path = 'C:/Users/grace/OneDrive/Surface Laptop Desktop/UofT/APS360/Project/model.pth'
+save_model_path = "/home/andrew/APS360_Project/Trained_Models/model_0.pth"
 torch.save(model.state_dict(), save_model_path)
 
 
